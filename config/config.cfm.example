@@ -1,0 +1,40 @@
+<!--- Configuration Example File --->
+<!--- Copy this to config.cfm and update with your actual values --->
+<cfscript>
+    // API Keys - NEVER commit actual keys to git
+    application.anthropicApiKey = getEnvironmentVariable("ANTHROPIC_API_KEY", "your-anthropic-api-key-here");
+    
+    // Google OAuth Configuration
+    application.googleClientId = getEnvironmentVariable("GOOGLE_CLIENT_ID", "your-google-client-id");
+    application.googleClientSecret = getEnvironmentVariable("GOOGLE_CLIENT_SECRET", "your-google-client-secret");
+    
+    // Database Configuration
+    application.datasource = getEnvironmentVariable("DATABASE_NAME", "clitools");
+    
+    // Helper function to get environment variables with defaults
+    function getEnvironmentVariable(required string name, string defaultValue = "") {
+        var value = "";
+        
+        // Try to get from system environment
+        try {
+            var system = createObject("java", "java.lang.System");
+            value = system.getenv(arguments.name);
+            if (!isNull(value) && len(trim(value))) {
+                return value;
+            }
+        } catch (any e) {
+            // Ignore errors
+        }
+        
+        // Try to get from server scope
+        if (structKeyExists(server, arguments.name)) {
+            value = server[arguments.name];
+            if (len(trim(value))) {
+                return value;
+            }
+        }
+        
+        // Return default
+        return arguments.defaultValue;
+    }
+</cfscript>

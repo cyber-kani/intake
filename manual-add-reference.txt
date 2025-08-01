@@ -1,0 +1,12 @@
+-- Run these SQL commands in your database to add the reference_id column:
+
+-- 1. Add reference_id column
+ALTER TABLE IntakeForms ADD reference_id VARCHAR(8);
+
+-- 2. Create index for faster lookups
+CREATE INDEX idx_reference_id ON IntakeForms(reference_id);
+
+-- 3. Update existing records with unique reference IDs
+UPDATE IntakeForms 
+SET reference_id = LEFT(REPLACE(NEWID(), '-', ''), 8)
+WHERE reference_id IS NULL;

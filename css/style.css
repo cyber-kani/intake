@@ -1,0 +1,125 @@
+/* Custom styles for intake form */
+.service-card {
+    cursor: pointer;
+    border: 1px solid #dee2e6;
+}
+
+.service-card:hover {
+    border-color: #0d6efd;
+}
+
+/* Form View Styles - Simplified */
+
+/* Simplified info display - removed */
+
+/* Simplified field display - removed */
+
+/* Simplified nested data display */
+.nested-data {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.nested-item {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.nested-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+/* Simplified Additional Details Styles - removed animations */
+
+/* Simplified category headers - removed */
+.category-title {
+    color: #2c3e50;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Premium field cards - removed */
+
+/* Premium field styling - removed */
+
+/* Premium list styling - removed */
+
+/* Structured data styling - removed */
+
+/* Removed complex animations and empty state styling */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .category-title {
+        font-size: 1rem;
+    }
+    
+    .color-swatch {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* Website styling - simplified elsewhere */
+
+.color-palette-display {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.color-swatch-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.color-swatch {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.color-hex {
+    font-family: monospace;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.color-name {
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+/* Reference websites and comments - simplified in main file */
+
+/* Additional mobile responsive styles */
+@media (max-width: 768px) {
+    .color-palette-display {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+}
+
+/* Print styles */
+@media print {
+    .btn {
+        display: none !important;
+    }
+    
+    .alert {
+        border: 1px solid #ccc !important;
+        background: #f8f9fa !important;
+    }
+}

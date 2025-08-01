@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    networks:
+      - intake-network
+
+volumes:
+  mssql-data:
+
+networks:
+  intake-network:
+    driver: bridge
