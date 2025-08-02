@@ -342,8 +342,9 @@ chatForm.addEventListener('submit', async function(e) {
     // Add user message to chat
     addMessage(message, 'user');
     
-    // Clear input
+    // Clear input and refocus
     userMessageInput.value = '';
+    userMessageInput.focus();
     
     // Show typing indicator
     showTypingIndicator();
@@ -599,6 +600,11 @@ function removeTypingIndicator() {
     const typingIndicator = document.getElementById('typingIndicator');
     if (typingIndicator) {
         typingIndicator.remove();
+    }
+    // Refocus on input after removing typing indicator
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.focus();
     }
 }
 
@@ -911,6 +917,36 @@ function submitCompleteForm() {
         form.submit();
     }, 1000);
 }
+
+// Initialize when page loads
+window.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const formId = urlParams.get('id');
+    
+    if (formId) {
+        // Load existing form
+        loadDraft(formId);
+    } else {
+        // New form - show initial message
+        addMessage("What would you like to build?\nJust tell me in a few words - website, mobile app, or software platform?", 'ai');
+    }
+    
+    // Focus on the chat input
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.focus();
+        
+        // Keep focus on input after each message
+        chatInput.addEventListener('blur', function() {
+            // Refocus after a short delay unless user clicked a button
+            setTimeout(() => {
+                if (!document.activeElement.matches('button, a')) {
+                    chatInput.focus();
+                }
+            }, 100);
+        });
+    }
+});
 </script>
 
 <cfinclude template="includes/footer.cfm">
