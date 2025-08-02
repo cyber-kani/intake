@@ -307,6 +307,26 @@ Now I'll collect some information from you. What's your first name?">
                     <cfset aiResponse = "Perfect! Now I need to collect some information from you. What's your first name?">
                     <cfset useAI = false>
                 </cfif>
+            <cfelseif updatedProjectInfo.project_type EQ "saas">
+                <cfif isNumeric(trim(userMessage))>
+                    <cfset num = val(userMessage)>
+                    <cfswitch expression="#num#">
+                        <cfcase value="1"><cfset updatedProjectInfo.service_type = "crm_system"></cfcase>
+                        <cfcase value="2"><cfset updatedProjectInfo.service_type = "dashboard_analytics"></cfcase>
+                        <cfcase value="3"><cfset updatedProjectInfo.service_type = "management_system"></cfcase>
+                        <cfcase value="4"><cfset updatedProjectInfo.service_type = "other_software"></cfcase>
+                    </cfswitch>
+                    <cfset updatedProjectInfo.stage = "basic_info">
+                    <!--- Force simple response after service selection --->
+                    <cfset aiResponse = "Perfect! Now I need to collect some information from you. What's your first name?">
+                    <cfset useAI = false>
+                <cfelse>
+                    <!--- Text response for SaaS type --->
+                    <cfset updatedProjectInfo.service_type = "other_software">
+                    <cfset updatedProjectInfo.stage = "basic_info">
+                    <cfset aiResponse = "Great! Now I need to collect some information from you. What's your first name?">
+                    <cfset useAI = false>
+                </cfif>
             </cfif>
         </cfcase>
         
