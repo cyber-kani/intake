@@ -15,6 +15,11 @@
     <cfset requestData = getHTTPRequestData()>
     <cfset jsonData = deserializeJSON(toString(requestData.content))>
     
+    <!--- Log if test mode is active --->
+    <cfif structKeyExists(url, "test")>
+        <cflog file="smart-chat-test" text="Test mode active: #url.test#">
+    </cfif>
+    
     <cfset userMessage = jsonData.message>
     <cfset conversationHistory = jsonData.conversationHistory>
     <cfset currentProjectInfo = jsonData.projectInfo>
@@ -269,7 +274,23 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
                 </cfif>
                 <!--- Force simple response after service selection --->
                 <cfif structKeyExists(updatedProjectInfo, "service_type") AND len(updatedProjectInfo.service_type)>
-                    <cfset aiResponse = "Great choice! Now I need to collect some information from you. What's your first name?">
+                    <!--- Create human-readable versions --->
+                    <cfset projectTypeDisplay = "">
+                    <cfswitch expression="#updatedProjectInfo.project_type#">
+                        <cfcase value="website"><cfset projectTypeDisplay = "Website"></cfcase>
+                        <cfcase value="mobile_app"><cfset projectTypeDisplay = "Mobile App"></cfcase>
+                        <cfcase value="saas"><cfset projectTypeDisplay = "SaaS/Software Platform"></cfcase>
+                    </cfswitch>
+                    
+                    <cfset serviceTypeDisplay = replace(updatedProjectInfo.service_type, "_", " ", "all")>
+                    <cfset serviceTypeDisplay = reReplace(serviceTypeDisplay, "\b(\w)", "\u\1", "all")>
+                    
+                    <cfset aiResponse = "Perfect! Based on our conversation, I understand you need:
+
+📋 **Project Type:** #projectTypeDisplay#  
+🎯 **Service Type:** #serviceTypeDisplay#
+
+Now I'll collect some information from you. What's your first name?">
                     <cfset useAI = false> <!--- IMPORTANT: Disable AI for this response --->
                     <cfset updatedProjectInfo.stage = "basic_info"> <!--- Move to next stage --->
                 </cfif>
@@ -299,6 +320,35 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
                 <cfset updatedProjectInfo.basicInfo.first_name = trim(userMessage)>
             <cfelseif NOT structKeyExists(collected, "last_name") OR NOT len(trim(structKeyExists(collected, "last_name") ? collected.last_name : ""))>
                 <cfset updatedProjectInfo.basicInfo.last_name = trim(userMessage)>
+                <!--- Check if user entered TEST to trigger test mode --->
+                <cfif trim(userMessage) EQ "TEST">
+                    <cfset updatedProjectInfo.basicInfo.email = session.user.email>
+                    <cfset updatedProjectInfo.basicInfo.phone = "555-1234">
+                    <cfset updatedProjectInfo.basicInfo.company = "Test Company">
+                    <cfset updatedProjectInfo.basicInfo.contact_method = "email">
+                    <cfset updatedProjectInfo.basicInfo.website = "no">
+                    <cfset updatedProjectInfo.projectDetails = {
+                        "description" = "Test project for name verification",
+                        "target_audience" = "Test audience",
+                        "geographic_target" = "local",
+                        "timeline" = "asap",
+                        "budget" = "5k_10k"
+                    }>
+                    <cfset updatedProjectInfo.designFeatures = {
+                        "colors" = ["##0000FF", "##FFFFFF"],
+                        "style" = "modern_minimal",
+                        "features" = ["contact form"]
+                    }>
+                    <cfset updatedProjectInfo.additionalInfo = {
+                        "reference_websites" = [],
+                        "has_branding" = "no",
+                        "need_content_writing" = "no",
+                        "need_maintenance" = "no",
+                        "additional_comments" = "",
+                        "referral_source" = "other"
+                    }>
+                    <cfset updatedProjectInfo.stage = "complete">
+                </cfif>
             <cfelseif NOT structKeyExists(collected, "email")>
                 <cfif find("@", userMessage) AND len(trim(userMessage)) GT 0>
                     <cfset updatedProjectInfo.basicInfo.email = trim(userMessage)>
@@ -390,10 +440,66 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
             <cfset collected = updatedProjectInfo.designFeatures>
             
             <cfif NOT structKeyExists(collected, "colors") OR (structKeyExists(collected, "colors") AND isArray(collected.colors) AND NOT arrayLen(collected.colors))>
-                <!--- Parse comma-separated colors --->
+                <!--- Parse comma-separated colors and convert to hex codes --->
                 <cfset colorList = []>
+                <cfset colorMap = {
+                    "red" = "##FF0000",
+                    "light red" = "##FF6B6B",
+                    "blue" = "##0000FF",
+                    "light blue" = "##45B7D1",
+                    "sky blue" = "##45B7D1",
+                    "navy" = "##1E3A8A",
+                    "dark blue" = "##1E3A8A",
+                    "green" = "##00FF00",
+                    "emerald" = "##10B981",
+                    "teal" = "##4ECDC4",
+                    "yellow" = "##FFFF00",
+                    "orange" = "##FFA500",
+                    "purple" = "##800080",
+                    "violet" = "##800080",
+                    "pink" = "##FFC0CB",
+                    "black" = "##000000",
+                    "white" = "##FFFFFF",
+                    "gray" = "##6B7280",
+                    "grey" = "##6B7280",
+                    "brown" = "##8B4513",
+                    "tan" = "##D4A574",
+                    "gold" = "##FFD700",
+                    "silver" = "##C0C0C0",
+                    "maroon" = "##800000",
+                    "lime" = "##00FF00",
+                    "aqua" = "##00FFFF",
+                    "cyan" = "##00FFFF",
+                    "magenta" = "##FF00FF",
+                    "indigo" = "##4B0082",
+                    "coral" = "##FF7F50",
+                    "salmon" = "##FA8072",
+                    "crimson" = "##DC143C",
+                    "turquoise" = "##40E0D0",
+                    "mint" = "##3EB489",
+                    "lavender" = "##E6E6FA",
+                    "beige" = "##F5F5DC",
+                    "ivory" = "##FFFFF0",
+                    "khaki" = "##F0E68C"
+                }>
+                
                 <cfloop list="#userMessage#" index="color">
-                    <cfset arrayAppend(colorList, trim(color))>
+                    <cfset cleanColor = trim(lcase(color))>
+                    <cfset hexColor = "">
+                    
+                    <!--- Check if it's already a hex code --->
+                    <cfif left(cleanColor, 1) EQ "##" AND (len(cleanColor) EQ 7 OR len(cleanColor) EQ 4)>
+                        <cfset hexColor = ucase(cleanColor)>
+                    <cfelseif structKeyExists(colorMap, cleanColor)>
+                        <cfset hexColor = colorMap[cleanColor]>
+                    <cfelse>
+                        <!--- If color not found, still add it as is (let the display handle it) --->
+                        <cfset hexColor = cleanColor>
+                    </cfif>
+                    
+                    <cfif len(hexColor)>
+                        <cfset arrayAppend(colorList, hexColor)>
+                    </cfif>
                 </cfloop>
                 <cfset updatedProjectInfo.designFeatures.colors = colorList>
             <cfelseif NOT structKeyExists(collected, "style") OR NOT len(trim(structKeyExists(collected, "style") ? collected.style : ""))>
@@ -425,6 +531,134 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
                 <cfset updatedProjectInfo.designFeatures.features = featureList>
             </cfif>
         </cfcase>
+        
+        <cfcase value="additional_info">
+            <cfif NOT structKeyExists(updatedProjectInfo, "additionalInfo")>
+                <cfset updatedProjectInfo.additionalInfo = {}>
+            </cfif>
+            <cfset collected = updatedProjectInfo.additionalInfo>
+            
+            <cfif NOT structKeyExists(collected, "reference_websites")>
+                <!--- Handle reference websites --->
+                <cfif lcase(trim(userMessage)) NEQ "none">
+                    <!--- Convert comma-separated or space-separated string to array --->
+                    <!--- First try comma separation --->
+                    <cfif find(",", userMessage)>
+                        <cfset websiteList = listToArray(userMessage, ",")>
+                    <cfelse>
+                        <!--- If no commas, try space separation --->
+                        <cfset websiteList = listToArray(userMessage, " ")>
+                    </cfif>
+                    <cfset cleanWebsites = []>
+                    <cfloop array="#websiteList#" index="website">
+                        <cfset cleanWebsite = trim(website)>
+                        <!--- Only add if it looks like a website (contains a dot) --->
+                        <cfif len(cleanWebsite) AND find(".", cleanWebsite)>
+                            <cfset arrayAppend(cleanWebsites, cleanWebsite)>
+                        </cfif>
+                    </cfloop>
+                    <cfset updatedProjectInfo.additionalInfo.reference_websites = cleanWebsites>
+                <cfelse>
+                    <cfset updatedProjectInfo.additionalInfo.reference_websites = []>
+                </cfif>
+            <cfelseif structKeyExists(collected, "reference_websites") AND isArray(collected.reference_websites) AND arrayLen(collected.reference_websites) GT 0 AND NOT structKeyExists(collected, "reference_descriptions")>
+                <!--- Handle reference website descriptions --->
+                <!--- Parse descriptions more intelligently --->
+                <cfset cleanDescriptions = []>
+                <cfset websiteCount = arrayLen(collected.reference_websites)>
+                
+                <!--- Try to match numbered format first (1. description, 2. description) --->
+                <cfset numberedPattern = "(\d+)\.\s*([^0-9]+)">
+                <cfset matches = reMatchNoCase(numberedPattern, userMessage)>
+                
+                <cfif arrayLen(matches) GT 0>
+                    <!--- Process numbered descriptions --->
+                    <cfloop from="1" to="#websiteCount#" index="i">
+                        <cfset found = false>
+                        <cfloop array="#matches#" index="match">
+                            <cfif reFind("^#i#\.", match)>
+                                <cfset desc = trim(reReplace(match, "^\d+\.\s*", ""))>
+                                <cfset arrayAppend(cleanDescriptions, desc)>
+                                <cfset found = true>
+                                <cfbreak>
+                            </cfif>
+                        </cfloop>
+                        <cfif NOT found>
+                            <cfset arrayAppend(cleanDescriptions, "")>
+                        </cfif>
+                    </cfloop>
+                <cfelse>
+                    <!--- Fall back to comma or semicolon separation --->
+                    <cfif find(";", userMessage)>
+                        <cfset descList = listToArray(userMessage, ";")>
+                    <cfelse>
+                        <cfset descList = listToArray(userMessage, ",")>
+                    </cfif>
+                    
+                    <cfloop array="#descList#" index="desc">
+                        <cfset cleanDesc = trim(desc)>
+                        <cfset arrayAppend(cleanDescriptions, cleanDesc)>
+                    </cfloop>
+                    
+                    <!--- Ensure we have the right number of descriptions --->
+                    <cfloop from="#arrayLen(cleanDescriptions) + 1#" to="#websiteCount#" index="i">
+                        <cfset arrayAppend(cleanDescriptions, "")>
+                    </cfloop>
+                </cfif>
+                
+                <cfset updatedProjectInfo.additionalInfo.reference_descriptions = cleanDescriptions>
+            <cfelseif NOT structKeyExists(collected, "has_branding")>
+                <!--- Handle branding materials question --->
+                <cfif isNumeric(trim(userMessage))>
+                    <cfset num = val(userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.has_branding = num EQ 1 ? "yes" : "no">
+                <cfelseif findNoCase("yes", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.has_branding = "yes">
+                <cfelseif findNoCase("no", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.has_branding = "no">
+                </cfif>
+            <cfelseif NOT structKeyExists(collected, "need_content_writing")>
+                <!--- Handle content writing question --->
+                <cfif isNumeric(trim(userMessage))>
+                    <cfset num = val(userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_content_writing = num EQ 1 ? "yes" : "no">
+                <cfelseif findNoCase("yes", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_content_writing = "yes">
+                <cfelseif findNoCase("no", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_content_writing = "no">
+                </cfif>
+            <cfelseif NOT structKeyExists(collected, "need_maintenance")>
+                <!--- Handle maintenance question --->
+                <cfif isNumeric(trim(userMessage))>
+                    <cfset num = val(userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_maintenance = num EQ 1 ? "yes" : "no">
+                <cfelseif findNoCase("yes", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_maintenance = "yes">
+                <cfelseif findNoCase("no", userMessage)>
+                    <cfset updatedProjectInfo.additionalInfo.need_maintenance = "no">
+                </cfif>
+            <cfelseif NOT structKeyExists(collected, "additional_comments")>
+                <!--- Handle additional comments --->
+                <cfif lcase(trim(userMessage)) NEQ "none">
+                    <cfset updatedProjectInfo.additionalInfo.additional_comments = userMessage>
+                <cfelse>
+                    <cfset updatedProjectInfo.additionalInfo.additional_comments = "">
+                </cfif>
+            <cfelseif NOT structKeyExists(collected, "referral_source")>
+                <!--- Handle referral source --->
+                <cfif isNumeric(trim(userMessage))>
+                    <cfset num = val(userMessage)>
+                    <cfswitch expression="#num#">
+                        <cfcase value="1"><cfset updatedProjectInfo.additionalInfo.referral_source = "google_search"></cfcase>
+                        <cfcase value="2"><cfset updatedProjectInfo.additionalInfo.referral_source = "social_media"></cfcase>
+                        <cfcase value="3"><cfset updatedProjectInfo.additionalInfo.referral_source = "referral"></cfcase>
+                        <cfcase value="4"><cfset updatedProjectInfo.additionalInfo.referral_source = "other"></cfcase>
+                    </cfswitch>
+                <cfelse>
+                    <cfset updatedProjectInfo.additionalInfo.referral_source = userMessage>
+                </cfif>
+            </cfif>
+        </cfcase>
     </cfswitch>
     
     <!--- Re-evaluate what question to ask after processing input --->
@@ -437,6 +671,38 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
                     <cfset aiResponse = "What's your first name?">
                 <cfelseif NOT structKeyExists(collected, "last_name") OR NOT len(trim(structKeyExists(collected, "last_name") ? collected.last_name : ""))>
                     <cfset aiResponse = "What's your last name?">
+                <!--- TEST MODE: Complete form after getting names --->
+                <cfelseif structKeyExists(collected, "first_name") AND len(trim(collected.first_name)) 
+                         AND structKeyExists(collected, "last_name") AND len(trim(collected.last_name))
+                         AND trim(collected.last_name) EQ "TEST">
+                    <!--- Set test data for remaining fields --->
+                    <cfset updatedProjectInfo.basicInfo.email = session.user.email>
+                    <cfset updatedProjectInfo.basicInfo.phone = "555-1234">
+                    <cfset updatedProjectInfo.basicInfo.company = "Test Company">
+                    <cfset updatedProjectInfo.basicInfo.contact_method = "email">
+                    <cfset updatedProjectInfo.basicInfo.website = "no">
+                    <cfset updatedProjectInfo.projectDetails = {
+                        "description" = "Test project for name verification",
+                        "target_audience" = "Test audience",
+                        "geographic_target" = "local",
+                        "timeline" = "asap",
+                        "budget" = "5k_10k"
+                    }>
+                    <cfset updatedProjectInfo.designFeatures = {
+                        "colors" = ["##0000FF", "##FFFFFF"],
+                        "style" = "modern_minimal",
+                        "features" = ["contact form"]
+                    }>
+                    <cfset updatedProjectInfo.additionalInfo = {
+                        "reference_websites" = [],
+                        "has_branding" = "no",
+                        "need_content_writing" = "no",
+                        "need_maintenance" = "no",
+                        "additional_comments" = "",
+                        "referral_source" = "other"
+                    }>
+                    <cfset updatedProjectInfo.stage = "complete">
+                    <cfset aiResponse = "TEST MODE ACTIVE: Form completed! Names captured: #collected.first_name# #collected.last_name#. All other fields filled with test data. Click the 'Submit Intake Form' button to test if names are saved correctly.">
                 <cfelseif NOT structKeyExists(collected, "email") OR NOT len(trim(structKeyExists(collected, "email") ? collected.email : ""))>
                     <cfset aiResponse = "What's your email address?">
                 <cfelseif NOT structKeyExists(collected, "phone") OR NOT len(trim(structKeyExists(collected, "phone") ? collected.phone : ""))>
@@ -508,8 +774,46 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
                 <cfelseif NOT structKeyExists(collected, "features") OR (structKeyExists(collected, "features") AND isArray(collected.features) AND arrayLen(collected.features) EQ 0)>
                     <cfset aiResponse = "What features do you need? (Type multiple features separated by commas, e.g., 'contact form, gallery, blog')">
                 <cfelse>
+                    <cfset updatedProjectInfo.stage = "additional_info">
+                    <cfset aiResponse = "Almost done! Do you have any reference websites you'd like to share? (Please provide URLs separated by commas, or type 'none')">
+                </cfif>
+            </cfcase>
+            
+            <cfcase value="additional_info">
+                <cfset collected = structKeyExists(updatedProjectInfo, "additionalInfo") ? updatedProjectInfo.additionalInfo : {}>
+                <cfif NOT structKeyExists(collected, "reference_websites") OR (structKeyExists(collected, "reference_websites") AND NOT isArray(collected.reference_websites))>
+                    <cfset aiResponse = "Do you have any reference websites you'd like to share? (Please provide URLs separated by commas, or type 'none')">
+                <cfelseif structKeyExists(collected, "reference_websites") AND isArray(collected.reference_websites) AND arrayLen(collected.reference_websites) GT 0 AND NOT structKeyExists(collected, "reference_descriptions")>
+                    <cfset websiteCount = arrayLen(collected.reference_websites)>
+                    <cfset aiResponse = "Great! For each website you mentioned, what do you like about them?#chr(10)##chr(10)#">
+                    <cfloop from="1" to="#websiteCount#" index="i">
+                        <cfset aiResponse = aiResponse & "#i#. #collected.reference_websites[i]#: #chr(10)#">
+                    </cfloop>
+                    <cfset aiResponse = aiResponse & "#chr(10)#(Please provide a brief description for each website)">
+                <cfelseif NOT structKeyExists(collected, "has_branding") OR NOT len(trim(structKeyExists(collected, "has_branding") ? collected.has_branding : ""))>
+                    <cfset aiResponse = "Do you have existing branding materials (logo, brand guidelines, etc.)?
+1. Yes
+2. No">
+                <cfelseif NOT structKeyExists(collected, "need_content_writing") OR NOT len(trim(structKeyExists(collected, "need_content_writing") ? collected.need_content_writing : ""))>
+                    <cfset aiResponse = "Do you need content writing services?
+1. Yes
+2. No">
+                <cfelseif NOT structKeyExists(collected, "need_maintenance") OR NOT len(trim(structKeyExists(collected, "need_maintenance") ? collected.need_maintenance : ""))>
+                    <cfset aiResponse = "Do you need ongoing maintenance and support?
+1. Yes
+2. No">
+                <cfelseif NOT structKeyExists(collected, "additional_comments")>
+                    <cfset aiResponse = "Any additional comments or special requirements? (Type your comments or 'none')">
+                <cfelseif NOT structKeyExists(collected, "referral_source") OR NOT len(trim(structKeyExists(collected, "referral_source") ? collected.referral_source : ""))>
+                    <cfset aiResponse = "How did you hear about us?
+1. Google Search
+2. Social Media
+3. Referral
+4. Other">
+                <cfelse>
                     <cfset updatedProjectInfo.stage = "complete">
-                    <cfset aiResponse = "Perfect! I have all the information I need. Click the submit button below to complete your form.">
+                    <cfset aiResponse = "Perfect! I have all the information I need. Your form is being submitted now...">
+                    <cfset updatedProjectInfo.autoSubmit = true>
                 </cfif>
             </cfcase>
         </cfswitch>
@@ -535,7 +839,8 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
         "response": aiResponse,
         "projectInfo": updatedProjectInfo,
         "conversationHistory": conversationHistory,
-        "isComplete": updatedProjectInfo.stage EQ "complete"
+        "isComplete": updatedProjectInfo.stage EQ "complete",
+        "autoSubmit": structKeyExists(updatedProjectInfo, "autoSubmit") AND updatedProjectInfo.autoSubmit EQ true
     }>
     
     <cfoutput>#serializeJSON(response)#</cfoutput>

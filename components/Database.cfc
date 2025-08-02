@@ -25,8 +25,6 @@
             </cfif>
         </cfloop>
         
-        <!--- Log for debugging --->
-        <cflog file="reference-id-generation" text="Generated reference ID: #refId#">
         
         <cfreturn refId>
     </cffunction>
@@ -81,7 +79,9 @@
         <cfargument name="userId" type="numeric" required="true">
         
         <cfquery name="qForms" datasource="clitools">
-            SELECT form_id, form_code, reference_id, service_type, first_name, last_name, email, 
+            SELECT form_id, form_code, reference_id, 
+                   COALESCE(service_type, '') as service_type, 
+                   first_name, last_name, email, 
                    is_finalized, created_at, submitted_at, form_data
             FROM IntakeForms
             WHERE user_id = <cfqueryparam value="#arguments.userId#" cfsqltype="cf_sql_integer">
@@ -146,8 +146,7 @@
         <!--- Generate unique reference ID --->
         <cfset var referenceId = generateReferenceId()>
         
-        <!--- Log the reference ID generation --->
-        <cflog file="intake-debug" text="Creating new form with reference_id: #referenceId# for user: #arguments.userId#">
+        
         
         <cfquery name="qInsert" datasource="clitools" result="result">
             INSERT INTO IntakeForms (
@@ -158,7 +157,7 @@
                 <cfqueryparam value="#arguments.userId#" cfsqltype="cf_sql_integer">,
                 <cfqueryparam value="#referenceId#" cfsqltype="cf_sql_varchar">,
                 <cfqueryparam value="#arguments.formData.project_type#" cfsqltype="cf_sql_varchar" null="#NOT structKeyExists(arguments.formData, 'project_type') OR len(trim(arguments.formData.project_type)) EQ 0#">,
-                <cfqueryparam value="#arguments.formData.service_type#" cfsqltype="cf_sql_varchar">,
+                <cfqueryparam value="#arguments.formData.service_type#" cfsqltype="cf_sql_varchar" null="#NOT structKeyExists(arguments.formData, 'service_type') OR len(trim(arguments.formData.service_type)) EQ 0#">,
                 <cfqueryparam value="#arguments.formData.first_name#" cfsqltype="cf_sql_nvarchar">,
                 <cfqueryparam value="#arguments.formData.last_name#" cfsqltype="cf_sql_nvarchar">,
                 <cfqueryparam value="#arguments.formData.phone_number#" cfsqltype="cf_sql_varchar">,
@@ -174,8 +173,6 @@
             FROM IntakeForms
             WHERE form_id = <cfqueryparam value="#result.identitycol#" cfsqltype="cf_sql_integer">
         </cfquery>
-        
-        <cflog file="intake-debug" text="Created form_id: #result.identitycol#, reference_id in DB: #qVerify.reference_id#">
         
         <cfreturn result.identitycol>
     </cffunction>
@@ -203,10 +200,11 @@
             </cfquery>
         </cfif>
         
-        <cfquery datasource="clitools">
+        
+        <cfquery datasource="clitools" result="updateResult">
             UPDATE IntakeForms
             SET project_type = <cfqueryparam value="#arguments.formData.project_type#" cfsqltype="cf_sql_varchar" null="#NOT structKeyExists(arguments.formData, 'project_type') OR len(trim(arguments.formData.project_type)) EQ 0#">,
-                service_type = <cfqueryparam value="#arguments.formData.service_type#" cfsqltype="cf_sql_varchar">,
+                service_type = <cfqueryparam value="#arguments.formData.service_type#" cfsqltype="cf_sql_varchar" null="#NOT structKeyExists(arguments.formData, 'service_type') OR len(trim(arguments.formData.service_type)) EQ 0#">,
                 first_name = <cfqueryparam value="#arguments.formData.first_name#" cfsqltype="cf_sql_nvarchar">,
                 last_name = <cfqueryparam value="#arguments.formData.last_name#" cfsqltype="cf_sql_nvarchar">,
                 phone_number = <cfqueryparam value="#arguments.formData.phone_number#" cfsqltype="cf_sql_varchar">,
@@ -216,7 +214,6 @@
                 updated_at = GETDATE()
             WHERE form_id = <cfqueryparam value="#arguments.formId#" cfsqltype="cf_sql_integer">
               AND user_id = <cfqueryparam value="#arguments.userId#" cfsqltype="cf_sql_integer">
-              AND is_finalized = 0
         </cfquery>
     </cffunction>
     

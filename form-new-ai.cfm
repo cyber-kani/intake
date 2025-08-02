@@ -313,10 +313,12 @@ const chatForm = document.getElementById('chatForm');
 let conversationHistory = [];
 let projectInfo = {
     stage: 'project_type',
-    type: null,
-    category: null,
-    service: null,
+    project_type: '',
+    service_type: '',
     description: '',
+    basicInfo: {},
+    projectDetails: {},
+    designFeatures: {},
     additionalInfo: {}
 };
 let currentFormId = null;
@@ -356,7 +358,12 @@ chatForm.addEventListener('submit', async function(e) {
         
         // console.log('Sending request:', requestData);
         
-        const response = await fetch('<cfoutput>#application.basePath#</cfoutput>/api/smart-chat.cfm', {
+        // Add test parameter if in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiUrl = '<cfoutput>#application.basePath#</cfoutput>/api/smart-chat.cfm' + 
+                      (urlParams.get('test') === 'names' ? '?test=names' : '');
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -390,23 +397,33 @@ chatForm.addEventListener('submit', async function(e) {
                 ...data.projectInfo,
                 basicInfo: { ...(projectInfo.basicInfo || {}), ...(data.projectInfo.basicInfo || {}) },
                 projectDetails: { ...(projectInfo.projectDetails || {}), ...(data.projectInfo.projectDetails || {}) },
-                designFeatures: { ...(projectInfo.designFeatures || {}), ...(data.projectInfo.designFeatures || {}) }
+                designFeatures: { ...(projectInfo.designFeatures || {}), ...(data.projectInfo.designFeatures || {}) },
+                additionalInfo: { ...(projectInfo.additionalInfo || {}), ...(data.projectInfo.additionalInfo || {}) }
             };
-            // console.log('Updated projectInfo:', projectInfo);
+            
         }
         
         // Check if form is complete
         if (data.isComplete && projectInfo.stage === 'complete') {
             // console.log('Form completion detected. ProjectInfo:', projectInfo);
             
-            // Show submit button
-            document.getElementById('continueSection').style.display = 'block';
-            
-            // Update button to say "Submit Form"
-            const submitBtn = document.querySelector('#continueSection button');
-            submitBtn.textContent = 'Submit Complete Form ';
-            submitBtn.innerHTML = 'Submit Complete Form <i class="fas fa-check-circle"></i>';
-            submitBtn.onclick = submitCompleteForm;
+            // Check if we should auto-submit
+            if (data.autoSubmit) {
+                // Auto-submit the form after a brief delay
+                setTimeout(() => {
+                    addMessage('Submitting your form...', 'ai');
+                    submitCompleteForm();
+                }, 1500);
+            } else {
+                // Show submit button for manual submission
+                document.getElementById('continueSection').style.display = 'block';
+                
+                // Update button to say "Submit Form"
+                const submitBtn = document.querySelector('#continueSection button');
+                submitBtn.textContent = 'Submit Complete Form ';
+                submitBtn.innerHTML = 'Submit Complete Form <i class="fas fa-check-circle"></i>';
+                submitBtn.onclick = submitCompleteForm;
+            }
         }
         
         // Update conversation history
@@ -627,7 +644,18 @@ function proceedToForm() {
     form.appendChild(fromAIInput);
     
     document.body.appendChild(form);
-    form.submit();
+    
+    // Show what we're submitting
+    console.log('SUBMITTING FORM WITH:');
+    console.log('First Name:', projectInfo.basicInfo?.first_name || '(EMPTY)');
+    console.log('Last Name:', projectInfo.basicInfo?.last_name || '(EMPTY)');
+    console.log('Email:', projectInfo.basicInfo?.email || '(EMPTY)');
+    console.log('Full BasicInfo:', projectInfo.basicInfo);
+    
+    // Add a small delay to see the logs
+    setTimeout(() => {
+        form.submit();
+    }, 1000);
 }
 
 // Allow Enter key to send message (Shift+Enter for new line)
@@ -812,16 +840,6 @@ async function loadDraft(referenceId) {
 
 // Function to submit the complete form
 function submitCompleteForm() {
-    // console.log('Submitting complete form with data:', projectInfo);
-    console.log('Current form ID before submit:', currentFormId);
-    console.log('Current reference ID:', currentReferenceId);
-    console.log('Form fields being submitted:', {
-        action: 'submit',
-        form_id: currentFormId ? String(currentFormId) : '',
-        reference_id: currentReferenceId || '',
-        has_form_id: currentFormId ? 'yes' : 'no',
-        has_reference_id: currentReferenceId ? 'yes' : 'no'
-    });
     
     // Create a form to submit all collected information
     const form = document.createElement('form');
@@ -839,13 +857,15 @@ function submitCompleteForm() {
         'project_type': projectInfo.project_type || '',
         'service_category': projectInfo.service_category || '',
         'service_type': projectInfo.service_type || '',
-        'first_name': projectInfo.basicInfo?.first_name || '',
-        'last_name': projectInfo.basicInfo?.last_name || '',
-        'email': projectInfo.basicInfo?.email || '<cfoutput>#session.user.email#</cfoutput>',
-        'phone_number': projectInfo.basicInfo?.phone || '',
-        'company_name': projectInfo.basicInfo?.company || '',
-        'preferred_contact_method': projectInfo.basicInfo?.contact_method || 'email',
-        'current_website': projectInfo.basicInfo?.website || 'no',
+        // Extract names from basicInfo and send as top-level fields, just like service_type
+        // Handle both uppercase and lowercase field names
+        'first_name': (projectInfo.basicInfo && (projectInfo.basicInfo.first_name || projectInfo.basicInfo.FIRST_NAME)) ? (projectInfo.basicInfo.first_name || projectInfo.basicInfo.FIRST_NAME) : '',
+        'last_name': (projectInfo.basicInfo && (projectInfo.basicInfo.last_name || projectInfo.basicInfo.LAST_NAME)) ? (projectInfo.basicInfo.last_name || projectInfo.basicInfo.LAST_NAME) : '',
+        'email': (projectInfo.basicInfo && (projectInfo.basicInfo.email || projectInfo.basicInfo.EMAIL)) ? (projectInfo.basicInfo.email || projectInfo.basicInfo.EMAIL) : '<cfoutput>#session.user.email#</cfoutput>',
+        'phone_number': (projectInfo.basicInfo && (projectInfo.basicInfo.phone || projectInfo.basicInfo.PHONE)) ? (projectInfo.basicInfo.phone || projectInfo.basicInfo.PHONE) : '',
+        'company_name': (projectInfo.basicInfo && (projectInfo.basicInfo.company || projectInfo.basicInfo.COMPANY)) ? (projectInfo.basicInfo.company || projectInfo.basicInfo.COMPANY) : '',
+        'preferred_contact_method': (projectInfo.basicInfo && (projectInfo.basicInfo.contact_method || projectInfo.basicInfo.CONTACT_METHOD)) ? (projectInfo.basicInfo.contact_method || projectInfo.basicInfo.CONTACT_METHOD) : 'email',
+        'current_website': (projectInfo.basicInfo && (projectInfo.basicInfo.website || projectInfo.basicInfo.WEBSITE)) ? (projectInfo.basicInfo.website || projectInfo.basicInfo.WEBSITE) : 'no',
         'project_name': 'AI Chat Project - ' + new Date().toLocaleDateString(),
         'project_description': projectInfo.projectDetails?.description || '',
         'target_audience': projectInfo.projectDetails?.target_audience || '',
@@ -855,6 +875,13 @@ function submitCompleteForm() {
         'design_style': projectInfo.designFeatures?.style || '',
         'color_preferences': JSON.stringify(projectInfo.designFeatures?.colors || []),
         'features': JSON.stringify(projectInfo.designFeatures?.features || []),
+        'reference_websites': JSON.stringify((projectInfo.additionalInfo && (projectInfo.additionalInfo.reference_websites || projectInfo.additionalInfo.REFERENCE_WEBSITES)) || []),
+        'reference_descriptions': JSON.stringify((projectInfo.additionalInfo && (projectInfo.additionalInfo.reference_descriptions || projectInfo.additionalInfo.REFERENCE_DESCRIPTIONS)) || []),
+        'has_branding': projectInfo.additionalInfo?.has_branding || 'no',
+        'need_content_writing': projectInfo.additionalInfo?.need_content_writing || 'no',
+        'need_maintenance': projectInfo.additionalInfo?.need_maintenance || 'no',
+        'additional_comments': projectInfo.additionalInfo?.additional_comments || '',
+        'referral_source': projectInfo.additionalInfo?.referral_source || '',
         'ai_conversation': JSON.stringify({
             'conversationHistory': conversationHistory,
             'projectInfo': projectInfo
@@ -869,10 +896,6 @@ function submitCompleteForm() {
         input.value = value;
         form.appendChild(input);
         
-        // Debug log for action field
-        if (name === 'action') {
-            console.log('Setting action field to:', value);
-        }
     }
     
     // Show loading state
@@ -881,7 +904,12 @@ function submitCompleteForm() {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
     
     document.body.appendChild(form);
-    form.submit();
+    
+    
+    // Add a small delay to see the logs
+    setTimeout(() => {
+        form.submit();
+    }, 1000);
 }
 </script>
 

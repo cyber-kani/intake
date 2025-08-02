@@ -2,7 +2,11 @@
 
 <!--- Get all forms --->
 <cfquery name="qAllForms" datasource="clitools">
-    SELECT f.*, u.email as user_email, u.display_name
+    SELECT f.form_id, f.form_code, f.reference_id, 
+           COALESCE(f.service_type, '') as service_type,
+           f.project_type, f.first_name, f.last_name, f.email as email,
+           f.is_finalized, f.created_at, f.submitted_at, f.form_data,
+           f.user_id, u.email as user_email, u.display_name
     FROM IntakeForms f
     INNER JOIN Users u ON f.user_id = u.user_id
     ORDER BY f.created_at DESC
@@ -53,6 +57,17 @@
                                                 <cfset serviceTypeValue = formDataObj.service_type>
                                             <cfelseif structKeyExists(formDataObj, "serviceFields") AND structKeyExists(formDataObj.serviceFields, "service_type")>
                                                 <cfset serviceTypeValue = formDataObj.serviceFields.service_type>
+                                            <cfelseif structKeyExists(formDataObj, "ai_conversation") AND isSimpleValue(formDataObj.ai_conversation)>
+                                                <!--- Try to extract from ai_conversation field --->
+                                                <cftry>
+                                                    <cfset aiConvData = deserializeJSON(formDataObj.ai_conversation)>
+                                                    <cfif structKeyExists(aiConvData, "projectInfo") AND structKeyExists(aiConvData.projectInfo, "service_type")>
+                                                        <cfset serviceTypeValue = aiConvData.projectInfo.service_type>
+                                                    </cfif>
+                                                    <cfcatch>
+                                                        <!--- Nested JSON parse error --->
+                                                    </cfcatch>
+                                                </cftry>
                                             </cfif>
                                             <cfcatch>
                                                 <!--- Invalid JSON, ignore --->

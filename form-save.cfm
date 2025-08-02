@@ -2,23 +2,18 @@
 <cfparam name="form.from_ai" default="false">
 <cfparam name="form.is_complete" default="false">
 
-<!--- Debug: Log what action was received --->
-<cffile action="append" 
-    file="/var/www/sites/clitools.app/wwwroot/intake/debug-form-save.txt" 
-    output="Action received: #form.action#, Form ID: #structKeyExists(form, 'form_id') ? form.form_id : 'none'#, Reference ID: #structKeyExists(form, 'reference_id') ? form.reference_id : 'none'#, Time: #now()#, All form fields: #structKeyList(form)#"
-    addnewline="yes">
 
 <cftry>
     <!--- Create form data structure --->
     <cfset formData = {
         "project_type" = structKeyExists(form, "project_type") ? form.project_type : "",
-        "service_type" = form.service_type,
-        "first_name" = form.first_name,
-        "last_name" = form.last_name,
+        "service_type" = structKeyExists(form, "service_type") ? form.service_type : "",
+        "first_name" = structKeyExists(form, "first_name") ? form.first_name : "",
+        "last_name" = structKeyExists(form, "last_name") ? form.last_name : "",
         "middle_name" = structKeyExists(form, "middle_name") ? form.middle_name : "",
         "date_of_birth" = structKeyExists(form, "date_of_birth") ? form.date_of_birth : "",
-        "phone_number" = form.phone_number,
-        "email" = form.email,
+        "phone_number" = structKeyExists(form, "phone_number") ? form.phone_number : "",
+        "email" = structKeyExists(form, "email") ? form.email : "",
         "street_address" = structKeyExists(form, "street_address") ? form.street_address : "",
         "city" = structKeyExists(form, "city") ? form.city : "",
         "state_province" = structKeyExists(form, "state_province") ? form.state_province : "",
@@ -40,6 +35,13 @@
         "design_style" = structKeyExists(form, "design_style") ? form.design_style : "",
         "color_preferences" = structKeyExists(form, "color_preferences") ? form.color_preferences : [],
         "features" = structKeyExists(form, "features") ? form.features : [],
+        "reference_websites" = structKeyExists(form, "reference_websites") ? form.reference_websites : [],
+        "reference_descriptions" = structKeyExists(form, "reference_descriptions") ? form.reference_descriptions : [],
+        "has_branding" = structKeyExists(form, "has_branding") ? form.has_branding : "no",
+        "need_content_writing" = structKeyExists(form, "need_content_writing") ? form.need_content_writing : "no",
+        "need_maintenance" = structKeyExists(form, "need_maintenance") ? form.need_maintenance : "no",
+        "additional_comments" = structKeyExists(form, "additional_comments") ? form.additional_comments : "",
+        "referral_source" = structKeyExists(form, "referral_source") ? form.referral_source : "",
         "ai_conversation" = structKeyExists(form, "ai_conversation") ? form.ai_conversation : "",
         "from_ai" = structKeyExists(form, "from_ai") AND form.from_ai EQ "true" ? true : false,
         "ai_draft" = false
@@ -48,6 +50,12 @@
     <!--- Handle AI form fields if from_ai is true --->
     <cfif form.from_ai EQ "true">
         <!--- Map AI form fields to the correct formData structure --->
+        <cfif structKeyExists(form, "project_type")>
+            <cfset formData.project_type = form.project_type>
+        </cfif>
+        <cfif structKeyExists(form, "service_type")>
+            <cfset formData.service_type = form.service_type>
+        </cfif>
         <cfif structKeyExists(form, "service_category")>
             <cfset formData.service_category = form.service_category>
         </cfif>
@@ -78,6 +86,53 @@
         <cfif structKeyExists(form, "features")>
             <cfset formData.features = form.features>
         </cfif>
+        <cfif structKeyExists(form, "reference_websites")>
+            <cftry>
+                <!--- Try to deserialize if it's JSON --->
+                <cfif isSimpleValue(form.reference_websites) AND isJSON(form.reference_websites)>
+                    <cfset formData.reference_websites = deserializeJSON(form.reference_websites)>
+                <cfelseif isArray(form.reference_websites)>
+                    <cfset formData.reference_websites = form.reference_websites>
+                <cfelse>
+                    <cfset formData.reference_websites = form.reference_websites>
+                </cfif>
+                <cfcatch>
+                    <cfset formData.reference_websites = form.reference_websites>
+                </cfcatch>
+            </cftry>
+        </cfif>
+        <cfif structKeyExists(form, "reference_descriptions")>
+            <cftry>
+                <!--- Try to deserialize if it's JSON --->
+                <cfif isSimpleValue(form.reference_descriptions) AND isJSON(form.reference_descriptions)>
+                    <cfset formData.reference_descriptions = deserializeJSON(form.reference_descriptions)>
+                <cfelseif isArray(form.reference_descriptions)>
+                    <cfset formData.reference_descriptions = form.reference_descriptions>
+                <cfelse>
+                    <cfset formData.reference_descriptions = form.reference_descriptions>
+                </cfif>
+                <cfcatch>
+                    <cfset formData.reference_descriptions = form.reference_descriptions>
+                </cfcatch>
+            </cftry>
+        </cfif>
+        
+        <!--- Map additional AI form fields --->
+        <cfif structKeyExists(form, "has_branding")>
+            <cfset formData.has_branding = form.has_branding>
+        </cfif>
+        <cfif structKeyExists(form, "need_content_writing")>
+            <cfset formData.need_content_writing = form.need_content_writing>
+        </cfif>
+        <cfif structKeyExists(form, "need_maintenance")>
+            <cfset formData.need_maintenance = form.need_maintenance>
+        </cfif>
+        <cfif structKeyExists(form, "additional_comments")>
+            <cfset formData.additional_comments = form.additional_comments>
+        </cfif>
+        <cfif structKeyExists(form, "referral_source")>
+            <cfset formData.referral_source = form.referral_source>
+        </cfif>
         
         <!--- Store AI conversation data if provided --->
         <cfif structKeyExists(form, "ai_conversation")>
@@ -94,9 +149,10 @@
         </cfif>
     </cfif>
     
+    
     <!--- Collect all other service-specific fields --->
     <cfloop collection="#form#" item="fieldName">
-        <cfif NOT listFindNoCase("action,service_type,first_name,last_name,middle_name,date_of_birth,phone_number,email,street_address,city,state_province,postal_code,country,company_name,job_title,preferred_contact_method,emergency_contact_name,emergency_contact_phone,fieldnames,from_ai,is_complete,form_id,reference_id,service_category,current_website,project_description,target_audience,geographic_target,timeline,budget_range,design_style,color_preferences,features,ai_conversation,project_name", fieldName)>
+        <cfif NOT listFindNoCase("action,service_type,first_name,last_name,middle_name,date_of_birth,phone_number,email,street_address,city,state_province,postal_code,country,company_name,job_title,preferred_contact_method,emergency_contact_name,emergency_contact_phone,fieldnames,from_ai,is_complete,form_id,reference_id,service_category,current_website,project_description,target_audience,geographic_target,timeline,budget_range,design_style,color_preferences,features,reference_websites,reference_descriptions,has_branding,need_content_writing,need_maintenance,additional_comments,referral_source,ai_conversation,project_name", fieldName)>
             <cfset formData.serviceFields[fieldName] = form[fieldName]>
         </cfif>
     </cfloop>
@@ -184,8 +240,8 @@
             output="Redirecting to: #application.basePath#/form-view.cfm?id=#qCheck.reference_id#&success=submitted"
             addnewline="yes">
         
-        <!--- Redirect to form view with reference_id --->
-        <cflocation url="#application.basePath#/form-view.cfm?id=#qCheck.reference_id#&success=submitted" addtoken="false">
+        <!--- Redirect to dashboard after successful submission --->
+        <cflocation url="#application.basePath#/dashboard.cfm?success=submitted" addtoken="false">
     <cfelse>
         <!--- Save as draft - Get reference_id --->
         <cfquery name="qDraft" datasource="clitools">

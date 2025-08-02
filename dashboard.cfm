@@ -67,16 +67,31 @@
                                     </td>
                                     <td>
                                         <cfset serviceDisplay = "">
-                                        <cfset serviceTypeValue = qForms.service_type>
+                                        <cfset serviceTypeValue = "">
+                                        <cfif NOT isNull(qForms.service_type)>
+                                            <cfset serviceTypeValue = trim(qForms.service_type)>
+                                        </cfif>
+                                        
                                         
                                         <!--- If service_type is empty, try to get it from form_data JSON --->
-                                        <cfif NOT len(trim(serviceTypeValue)) AND len(trim(qForms.form_data))>
+                                        <cfif NOT len(serviceTypeValue) AND len(trim(qForms.form_data))>
                                             <cftry>
                                                 <cfset formDataObj = deserializeJSON(qForms.form_data)>
                                                 <cfif structKeyExists(formDataObj, "service_type")>
                                                     <cfset serviceTypeValue = formDataObj.service_type>
                                                 <cfelseif structKeyExists(formDataObj, "serviceFields") AND structKeyExists(formDataObj.serviceFields, "service_type")>
                                                     <cfset serviceTypeValue = formDataObj.serviceFields.service_type>
+                                                <cfelseif structKeyExists(formDataObj, "ai_conversation") AND isSimpleValue(formDataObj.ai_conversation)>
+                                                    <!--- Try to extract from ai_conversation field --->
+                                                    <cftry>
+                                                        <cfset aiConvData = deserializeJSON(formDataObj.ai_conversation)>
+                                                        <cfif structKeyExists(aiConvData, "projectInfo") AND structKeyExists(aiConvData.projectInfo, "service_type")>
+                                                            <cfset serviceTypeValue = aiConvData.projectInfo.service_type>
+                                                        </cfif>
+                                                        <cfcatch>
+                                                            <!--- Nested JSON parse error --->
+                                                        </cfcatch>
+                                                    </cftry>
                                                 </cfif>
                                                 <cfcatch>
                                                     <!--- JSON parse error, ignore --->
@@ -89,34 +104,60 @@
                                             <cfset serviceCategory = "">
                                             <cfset serviceType = "">
                                             
-                                            <!--- Check if it's in format like "website_design" or "app_development" --->
-                                            <cfif findNoCase("_", serviceTypeValue)>
-                                                <cfset firstUnderscore = find("_", serviceTypeValue)>
-                                                <cfset serviceCategory = left(serviceTypeValue, firstUnderscore - 1)>
-                                                <cfset serviceType = mid(serviceTypeValue, firstUnderscore + 1, len(serviceTypeValue))>
-                                                
-                                                <!--- Make service type human readable --->
-                                                <cfset serviceType = replace(serviceType, "_", " ", "all")>
-                                                <cfset serviceType = reReplace(serviceType, "\b(\w)", "\u\1", "all")>
-                                                
-                                                <!--- Determine badge color based on category --->
-                                                <cfset badgeClass = "bg-secondary">
-                                                <cfswitch expression="#lcase(serviceCategory)#">
-                                                    <cfcase value="website"><cfset badgeClass = "bg-primary"></cfcase>
-                                                    <cfcase value="app,mobile_app"><cfset badgeClass = "bg-success"></cfcase>
-                                                    <cfcase value="saas,software"><cfset badgeClass = "bg-info"></cfcase>
-                                                    <cfcase value="ecommerce,e_commerce"><cfset badgeClass = "bg-warning text-dark"></cfcase>
-                                                </cfswitch>
-                                                
-                                                <small>
-                                                    <span class="badge <cfoutput>#badgeClass#</cfoutput>" style="font-size: 0.65rem;"><cfoutput>#ucase(serviceCategory)#</cfoutput></span><br>
-                                                    <cfoutput>#serviceType#</cfoutput>
-                                                </small>
-                                            <cfelse>
-                                                <!--- If no underscore, just display as is but capitalize --->
-                                                <cfset displayValue = reReplace(serviceTypeValue, "\b(\w)", "\u\1", "all")>
-                                                <small><cfoutput>#displayValue#</cfoutput></small>
-                                            </cfif>
+                                            <!--- Format service type for display --->
+                                            <cfset displayName = "">
+                                            <cfset badgeClass = "bg-secondary">
+                                            
+                                            <!--- Handle known service types --->
+                                            <cfswitch expression="#lcase(serviceTypeValue)#">
+                                                <cfcase value="ecommerce_standard">
+                                                    <cfset displayName = "E-commerce Website">
+                                                    <cfset badgeClass = "bg-warning text-dark">
+                                                </cfcase>
+                                                <cfcase value="corporate_standard">
+                                                    <cfset displayName = "Corporate Website">
+                                                    <cfset badgeClass = "bg-primary">
+                                                </cfcase>
+                                                <cfcase value="portfolio">
+                                                    <cfset displayName = "Portfolio Website">
+                                                    <cfset badgeClass = "bg-info">
+                                                </cfcase>
+                                                <cfcase value="blog_news">
+                                                    <cfset displayName = "Blog/News Website">
+                                                    <cfset badgeClass = "bg-success">
+                                                </cfcase>
+                                                <cfcase value="landing_page">
+                                                    <cfset displayName = "Landing Page">
+                                                    <cfset badgeClass = "bg-secondary">
+                                                </cfcase>
+                                                <cfcase value="custom_website">
+                                                    <cfset displayName = "Custom Website">
+                                                    <cfset badgeClass = "bg-dark">
+                                                </cfcase>
+                                                <cfcase value="ios_app">
+                                                    <cfset displayName = "iOS App">
+                                                    <cfset badgeClass = "bg-success">
+                                                </cfcase>
+                                                <cfcase value="android_app">
+                                                    <cfset displayName = "Android App">
+                                                    <cfset badgeClass = "bg-success">
+                                                </cfcase>
+                                                <cfcase value="cross_platform_app">
+                                                    <cfset displayName = "Cross-Platform App">
+                                                    <cfset badgeClass = "bg-success">
+                                                </cfcase>
+                                                <cfdefaultcase>
+                                                    <!--- Format unknown types --->
+                                                    <cfset displayName = replace(serviceTypeValue, "_", " ", "all")>
+                                                    <cfset displayName = reReplace(displayName, "\b(\w)", "\u\1", "all")>
+                                                </cfdefaultcase>
+                                            </cfswitch>
+                                            
+                                            <small>
+                                                <span class="badge <cfoutput>#badgeClass#</cfoutput>">
+                                                    <cfoutput>#displayName#</cfoutput>
+                                                </span>
+                                            </small>
                                         <cfelse>
                                             <small class="text-muted">Not specified</small>
                                         </cfif>

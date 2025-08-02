@@ -87,6 +87,20 @@
                         </cfloop>
                     </cfif>
                     
+                    <!--- Extract additional info (reference websites, etc.) --->
+                    <cfif structKeyExists(aiProjectInfo, "additionalInfo") AND isStruct(aiProjectInfo.additionalInfo)>
+                        <cfloop collection="#aiProjectInfo.additionalInfo#" item="key">
+                            <cfset mappedKey = lcase(key)>
+                            <cfif mappedKey EQ "reference_websites" AND isArray(aiProjectInfo.additionalInfo[key])>
+                                <cfset rawData["reference_websites"] = aiProjectInfo.additionalInfo[key]>
+                            <cfelseif mappedKey EQ "reference_descriptions" AND isArray(aiProjectInfo.additionalInfo[key])>
+                                <cfset rawData["reference_descriptions"] = aiProjectInfo.additionalInfo[key]>
+                            <cfelse>
+                                <cfset rawData[mappedKey] = aiProjectInfo.additionalInfo[key]>
+                            </cfif>
+                        </cfloop>
+                    </cfif>
+                    
                     <!--- Also get project type and service type from projectInfo --->
                     <cfif structKeyExists(aiProjectInfo, "project_type") AND len(aiProjectInfo.project_type)>
                         <cfset rawData["project_type"] = aiProjectInfo.project_type>
@@ -145,6 +159,19 @@
                     <cfset rawData["color_preferences"] = rawData.designFeatures[key]>
                 <cfelseif mappedKey EQ "features" AND isArray(rawData.designFeatures[key])>
                     <cfset rawData["features"] = rawData.designFeatures[key]>
+                </cfif>
+            </cfloop>
+        </cfif>
+        
+        <cfif structKeyExists(rawData, "additionalInfo") AND isStruct(rawData.additionalInfo)>
+            <cfloop collection="#rawData.additionalInfo#" item="key">
+                <cfset mappedKey = lcase(key)>
+                <cfif mappedKey EQ "reference_websites" AND isArray(rawData.additionalInfo[key])>
+                    <cfset rawData["reference_websites"] = rawData.additionalInfo[key]>
+                <cfelseif mappedKey EQ "reference_descriptions" AND isArray(rawData.additionalInfo[key])>
+                    <cfset rawData["reference_descriptions"] = rawData.additionalInfo[key]>
+                <cfelse>
+                    <cfset rawData[mappedKey] = rawData.additionalInfo[key]>
                 </cfif>
             </cfloop>
         </cfif>
@@ -994,7 +1021,13 @@
                                                     <cfset colorName = "Custom">
                                                 <cfelse>
                                                     <cfset displayColor = "##CCCCCC">
-                                                    <cfset colorName = ucase(left(colorValue, 1)) & right(colorValue, len(colorValue)-1)>
+                                                    <cfif len(colorValue) GT 1>
+                                                        <cfset colorName = ucase(left(colorValue, 1)) & right(colorValue, len(colorValue)-1)>
+                                                    <cfelseif len(colorValue) EQ 1>
+                                                        <cfset colorName = ucase(colorValue)>
+                                                    <cfelse>
+                                                        <cfset colorName = "Unknown">
+                                                    </cfif>
                                                 </cfif>
                                             </cfdefaultcase>
                                         </cfswitch>
@@ -1024,69 +1057,63 @@
                     </cfif>
                     
                     <!--- Reference Websites Section --->
-                    <cfif structKeyExists(serviceFields, "reference_websites") AND isArray(serviceFields.reference_websites) AND arrayLen(serviceFields.reference_websites)>
-                        <div class="mb-4">
+                    <cfif structKeyExists(serviceFields, "reference_websites") AND (
+                        (isArray(serviceFields.reference_websites) AND arrayLen(serviceFields.reference_websites) GT 0) OR
+                        (isSimpleValue(serviceFields.reference_websites) AND len(trim(serviceFields.reference_websites)) AND serviceFields.reference_websites NEQ "none")
+                    )>
+                            <div class="mb-4">
                             <h5 class="border-bottom pb-2 mb-3">Reference Websites</h5>
                             <div class="row g-3">
-                                <cfloop from="1" to="#arrayLen(serviceFields.reference_websites)#" index="idx">
-                                    <cfset website = serviceFields.reference_websites[idx]>
-                                    <!--- Get URL and description --->
-                                    <cfset websiteUrl = "">
-                                    <cfset description = "">
-                                    
-                                    <cfif isStruct(website)>
-                                        <cfif structKeyExists(website, "url") AND isSimpleValue(website.url)>
-                                            <cfset websiteUrl = website.url>
-                                        </cfif>
-                                        <cfif structKeyExists(website, "description") AND isSimpleValue(website.description)>
-                                            <cfset description = website.description>
-                                        </cfif>
-                                    <cfelseif isSimpleValue(website)>
-                                        <cfset websiteUrl = website>
-                                        <cfif structKeyExists(serviceFields, "reference_descriptions") AND isArray(serviceFields.reference_descriptions) AND arrayLen(serviceFields.reference_descriptions) GTE idx>
-                                            <cfset description = serviceFields.reference_descriptions[idx]>
-                                        </cfif>
-                                    <cfelse>
-                                        <!--- Handle unexpected data type --->
-                                        <cfset websiteUrl = "Invalid URL data">
+                                <!--- Handle both array and string formats --->
+                                <cfset websitesList = []>
+                                <cfset descriptionsList = []>
+                                
+                                <cfif isArray(serviceFields.reference_websites)>
+                                    <cfset websitesList = serviceFields.reference_websites>
+                                <cfelseif isSimpleValue(serviceFields.reference_websites)>
+                                    <cfset websitesList = listToArray(serviceFields.reference_websites, ",")>
+                                </cfif>
+                                
+                                <cfif structKeyExists(serviceFields, "reference_descriptions")>
+                                    <cfif isArray(serviceFields.reference_descriptions)>
+                                        <cfset descriptionsList = serviceFields.reference_descriptions>
+                                    <cfelseif isSimpleValue(serviceFields.reference_descriptions)>
+                                        <cfset descriptionsList = listToArray(serviceFields.reference_descriptions, ",")>
                                     </cfif>
+                                </cfif>
                                     
-                                    <!--- Ensure url is a string --->
-                                    <cfif NOT isSimpleValue(websiteUrl)>
-                                        <cfset websiteUrl = "Invalid URL data">
-                                    </cfif>
-                                    
-                                    <!--- Ensure description is a string --->
-                                    <cfif NOT isSimpleValue(description)>
+                                    <cfloop from="1" to="#arrayLen(websitesList)#" index="idx">
+                                        <cfset websiteUrl = trim(websitesList[idx])>
                                         <cfset description = "">
-                                    </cfif>
-                                    
-                                    <div class="col-12">
-                                        <div class="p-3 border rounded bg-light">
-                                            <div class="d-flex align-items-start">
-                                                <div class="me-3">
-                                                    <span class="badge bg-primary rounded-circle" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                                                        <cfoutput>#idx#</cfoutput>
-                                                    </span>
-                                                </div>
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-bold mb-1">
-                                                        <a href="<cfoutput>#websiteUrl#</cfoutput>" target="_blank" class="text-decoration-none">
-                                                            <cfoutput>#websiteUrl#</cfoutput>
-                                                            <i class="fas fa-external-link-alt ms-1 small"></i>
-                                                        </a>
+                                        <cfif arrayLen(descriptionsList) GTE idx>
+                                            <cfset description = trim(descriptionsList[idx])>
+                                        </cfif>
+                                        
+                                        <div class="col-12">
+                                            <div class="p-3 border rounded bg-light">
+                                                <div class="d-flex align-items-start">
+                                                    <div class="me-3">
+                                                        <span class="badge bg-primary rounded-circle" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                                                            <cfoutput>#idx#</cfoutput>
+                                                        </span>
                                                     </div>
-                                                    <cfif len(description)>
-                                                        <div class="text-muted">
-                                                            <i class="fas fa-quote-left me-1 small"></i>
-                                                            <cfoutput>#description#</cfoutput>
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-bold mb-1">
+                                                            <a href="<cfoutput>#websiteUrl#</cfoutput>" target="_blank" class="text-decoration-none">
+                                                                <cfoutput>#websiteUrl#</cfoutput>
+                                                                <i class="fas fa-external-link-alt ms-1 small"></i>
+                                                            </a>
                                                         </div>
-                                                    </cfif>
+                                                        <cfif len(description)>
+                                                            <div class="text-muted small">
+                                                                <cfoutput>#description#</cfoutput>
+                                                            </div>
+                                                        </cfif>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </cfloop>
+                                    </cfloop>
                             </div>
                         </div>
                     </cfif>

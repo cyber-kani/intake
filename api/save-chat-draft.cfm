@@ -25,8 +25,6 @@
     <cfset requestData = getHTTPRequestData()>
     <cfset jsonData = deserializeJSON(toString(requestData.content))>
     
-    <!--- Log incoming data for debugging --->
-    <cflog file="save-chat-draft" text="Incoming data: #toString(requestData.content)#">
     
     <!--- Extract data --->
     <cfset conversationHistory = jsonData.conversationHistory>
@@ -37,11 +35,13 @@
     <cfset formData = {
         "project_type" = structKeyExists(projectInfo, "project_type") ? projectInfo.project_type : "",
         "service_type" = structKeyExists(projectInfo, "service_type") ? projectInfo.service_type : "",
+        "service_category" = structKeyExists(projectInfo, "service_category") ? projectInfo.service_category : "",
         "first_name" = "",
         "last_name" = "",
         "email" = structKeyExists(session, "user") AND structKeyExists(session.user, "email") ? session.user.email : "",
         "phone_number" = "",
         "company_name" = "",
+        "industry" = "",
         "preferred_contact_method" = "",
         "current_website" = "",
         "project_description" = "",
@@ -52,6 +52,13 @@
         "design_style" = "",
         "color_preferences" = [],
         "features" = [],
+        "reference_websites" = [],
+        "reference_descriptions" = [],
+        "has_branding" = "no",
+        "need_content_writing" = "no",
+        "need_maintenance" = "no",
+        "additional_comments" = "",
+        "referral_source" = "",
         "ai_conversation" = serializeJSON({
             "conversationHistory" = conversationHistory,
             "projectInfo" = projectInfo,
@@ -118,6 +125,42 @@
         </cfif>
     </cfif>
     
+    <!--- Extract additional info --->
+    <cfif structKeyExists(projectInfo, "additionalInfo") AND isStruct(projectInfo.additionalInfo)>
+        <cfif structKeyExists(projectInfo.additionalInfo, "reference_websites")>
+            <cfif isArray(projectInfo.additionalInfo.reference_websites)>
+                <cfset formData.reference_websites = projectInfo.additionalInfo.reference_websites>
+            <cfelseif isSimpleValue(projectInfo.additionalInfo.reference_websites) AND len(projectInfo.additionalInfo.reference_websites)>
+                <!--- Convert string to array for backward compatibility --->
+                <cfset formData.reference_websites = listToArray(projectInfo.additionalInfo.reference_websites, ",")>
+            </cfif>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "reference_descriptions")>
+            <cfif isArray(projectInfo.additionalInfo.reference_descriptions)>
+                <cfset formData.reference_descriptions = projectInfo.additionalInfo.reference_descriptions>
+            <cfelseif isSimpleValue(projectInfo.additionalInfo.reference_descriptions) AND len(projectInfo.additionalInfo.reference_descriptions)>
+                <!--- Convert string to array for backward compatibility --->
+                <cfset formData.reference_descriptions = listToArray(projectInfo.additionalInfo.reference_descriptions, ",")>
+            </cfif>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "has_branding") AND len(projectInfo.additionalInfo.has_branding)>
+            <cfset formData.has_branding = projectInfo.additionalInfo.has_branding>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "need_content_writing") AND len(projectInfo.additionalInfo.need_content_writing)>
+            <cfset formData.need_content_writing = projectInfo.additionalInfo.need_content_writing>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "need_maintenance") AND len(projectInfo.additionalInfo.need_maintenance)>
+            <cfset formData.need_maintenance = projectInfo.additionalInfo.need_maintenance>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "additional_comments") AND len(projectInfo.additionalInfo.additional_comments)>
+            <cfset formData.additional_comments = projectInfo.additionalInfo.additional_comments>
+        </cfif>
+        <cfif structKeyExists(projectInfo.additionalInfo, "referral_source") AND len(projectInfo.additionalInfo.referral_source)>
+            <cfset formData.referral_source = projectInfo.additionalInfo.referral_source>
+        </cfif>
+    </cfif>
+    
+    
     <!--- Create database component --->
     <cftry>
         <cfset db = createObject("component", "intake.components.Database")>
@@ -137,8 +180,6 @@
         <cfset userId = session.userId>
     </cfif>
     
-    <!--- Log user ID for debugging --->
-    <cflog file="save-chat-draft" text="User ID: #userId#, FormId: #formId#">
     
     <cfif userId EQ 0>
         <cfthrow message="User ID not found in session">

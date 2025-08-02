@@ -2,7 +2,13 @@
 
 <!--- Get form data --->
 <cfset db = createObject("component", "components.Database")>
-<cfset qForm = db.getFormById(url.id, session.user.userId)>
+
+<!--- Check if ID is numeric (old style) or alphanumeric (reference_id) --->
+<cfif isNumeric(url.id)>
+    <cfset qForm = db.getFormById(url.id, session.user.userId)>
+<cfelse>
+    <cfset qForm = db.getFormByCode(url.id, session.user.userId)>
+</cfif>
 
 <cfif qForm.recordCount EQ 0>
     <cflocation url="#application.basePath#/dashboard.cfm" addtoken="false">
