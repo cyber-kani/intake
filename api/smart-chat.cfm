@@ -229,23 +229,30 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
         </cfif>
     </cfif>
     
-    <!--- Update conversation history --->
-    <cfset arrayAppend(conversationHistory, {"role": "user", "content": userMessage})>
-    <cfset arrayAppend(conversationHistory, {"role": "assistant", "content": aiResponse})>
-    
-    <!--- Process user response and update project info --->
+    <!--- Process user response and update project info BEFORE adding to conversation history --->
     <cfswitch expression="#currentStage#">
         <cfcase value="project_type">
-            <cfif findNoCase("website", userMessage) OR findNoCase("website", aiResponse)>
+            <!--- Check user message FIRST for common software misspellings --->
+            <cfif REFindNoCase("(sas|saas|softwear|sofware|softwar|softwer|sistem|dashboard|crm|analytics|management|application|program|telcom|telecom)", userMessage)>
+                <cfset updatedProjectInfo.project_type = "saas">
+                <cfset updatedProjectInfo.stage = "service_type">
+                <!--- Override AI response if it misunderstood --->
+                <cfset aiResponse = "I understand you need a software platform. Let me help you with that.
+
+What type of software do you need?
+1. CRM System
+2. Dashboard/Analytics
+3. Management System
+4. Other">
+                <!--- Set the proper follow-up question --->
+                <cfset useAI = false>
+            <cfelseif findNoCase("website", userMessage) OR findNoCase("website", aiResponse)>
                 <cfset updatedProjectInfo.project_type = "website">
                 <cfset updatedProjectInfo.stage = "service_type">
             <cfelseif findNoCase("app", userMessage) OR findNoCase("mobile", userMessage) OR findNoCase("mobile app", aiResponse)>
                 <cfset updatedProjectInfo.project_type = "mobile_app">
                 <cfset updatedProjectInfo.stage = "service_type">
-            <cfelseif findNoCase("software", userMessage) OR findNoCase("saas", userMessage) OR findNoCase("system", userMessage) OR findNoCase("software platform", aiResponse) 
-                     OR findNoCase("softwear", userMessage) OR findNoCase("sofware", userMessage) OR findNoCase("sas", userMessage) 
-                     OR findNoCase("dashboard", userMessage) OR findNoCase("crm", userMessage) OR findNoCase("analytics", userMessage)
-                     OR findNoCase("management", userMessage) OR findNoCase("application", userMessage) OR findNoCase("program", userMessage)>
+            <cfelseif findNoCase("software", userMessage) OR findNoCase("saas", userMessage) OR findNoCase("system", userMessage) OR findNoCase("software platform", aiResponse)>
                 <cfset updatedProjectInfo.project_type = "saas">
                 <cfset updatedProjectInfo.stage = "service_type">
             </cfif>
@@ -253,7 +260,19 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
         
         <cfcase value="service_type">
             <cfif updatedProjectInfo.project_type EQ "website">
-                <cfif findNoCase("ecommerce", userMessage) OR findNoCase("store", userMessage) OR findNoCase("shop", userMessage)>
+                <cfif isNumeric(trim(userMessage))>
+                    <!--- Handle numbered selection for websites --->
+                    <cfset num = val(userMessage)>
+                    <cfswitch expression="#num#">
+                        <cfcase value="1"><cfset updatedProjectInfo.service_type = "ecommerce_standard"></cfcase>
+                        <cfcase value="2"><cfset updatedProjectInfo.service_type = "corporate_standard"></cfcase>
+                        <cfcase value="3"><cfset updatedProjectInfo.service_type = "portfolio"></cfcase>
+                        <cfcase value="4"><cfset updatedProjectInfo.service_type = "blog_news"></cfcase>
+                        <cfcase value="5"><cfset updatedProjectInfo.service_type = "landing_page"></cfcase>
+                        <cfcase value="6"><cfset updatedProjectInfo.service_type = "custom_website"></cfcase>
+                    </cfswitch>
+                    <cfset updatedProjectInfo.stage = "basic_info">
+                <cfelseif findNoCase("ecommerce", userMessage) OR findNoCase("store", userMessage) OR findNoCase("shop", userMessage)>
                     <cfset updatedProjectInfo.service_type = "ecommerce_standard">
                     <cfset updatedProjectInfo.stage = "basic_info">
                 <cfelseif findNoCase("corporate", userMessage) OR findNoCase("business", userMessage) OR findNoCase("company", userMessage)>
@@ -329,11 +348,22 @@ Now I'll collect some information from you. What's your first name?">
                     <cfset aiResponse = "Perfect! Now I need to collect some information from you. What's your first name?">
                     <cfset useAI = false>
                 <cfelse>
-                    <!--- Text response for SaaS type --->
-                    <cfset updatedProjectInfo.service_type = "other_software">
-                    <cfset updatedProjectInfo.stage = "basic_info">
-                    <cfset aiResponse = "Great! Now I need to collect some information from you. What's your first name?">
-                    <cfset useAI = false>
+                    <!--- Check if user is still mentioning software-related keywords, indicating they haven't selected yet --->
+                    <cfif REFindNoCase("(sas|saas|softwear|sofware|softwar|softwer|sistem|dashboard|crm|analytics|management|application|program|telcom|telecom|software|system)", userMessage)>
+                        <!--- They're describing software but haven't selected from the list - show options again --->
+                        <cfset aiResponse = "I understand. What type of software do you need?
+1. CRM System
+2. Dashboard/Analytics
+3. Management System
+4. Other (please describe)">
+                        <cfset useAI = false>
+                    <cfelse>
+                        <!--- Text response for SaaS type - they've provided a description --->
+                        <cfset updatedProjectInfo.service_type = "other_software">
+                        <cfset updatedProjectInfo.stage = "basic_info">
+                        <cfset aiResponse = "Great! Now I need to collect some information from you. What's your first name?">
+                        <cfset useAI = false>
+                    </cfif>
                 </cfif>
             </cfif>
         </cfcase>
@@ -860,6 +890,10 @@ Now I'll collect some information from you. What's your first name?">
             <cflog file="smart-chat-debug" text="Stage: #currentStage#, UserMsg: #userMessage#, Response: #left(aiResponse, 100)#">
         </cfcatch>
     </cftry>
+    
+    <!--- Update conversation history with final response --->
+    <cfset arrayAppend(conversationHistory, {"role": "user", "content": userMessage})>
+    <cfset arrayAppend(conversationHistory, {"role": "assistant", "content": aiResponse})>
     
     <!--- Return response --->
     <cfset response = {
