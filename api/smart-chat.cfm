@@ -47,9 +47,14 @@
         <cfcase value="project_type">
             <cfset useAI = true>
             <cfset systemPrompt = "You are helping determine what type of project the user wants. Based on their message, determine if they want:
-1. A website (any mention of website, site, web page, online presence)
-2. A mobile app (any mention of app, mobile application, iOS, Android)
-3. Software/SaaS (any mention of software, system, platform, SaaS, dashboard)
+1. A website (any mention of website, site, web page, online presence, webpage)
+2. A mobile app (any mention of app, mobile application, iOS, Android, phone app)
+3. Software/SaaS (any mention of software, system, platform, SaaS, dashboard, CRM, analytics, management, application, program, tool, or variations like: softwear, sofware, softwar, sas, saas, sistem, aplication, softwer)
+
+IMPORTANT RULES:
+- Be VERY flexible with spelling mistakes (sas=saas, softwear=software, etc)
+- If user says they DON'T want something (e.g., 'I don't need a website', 'not a website'), NEVER suggest that type
+- Common misspellings for software: softwear, sofware, softwar, softwer, sas (instead of saas)
 
 Respond ONLY with: 'I understand you need a [type]. Let me help you with that.'
 Where [type] is either 'website', 'mobile app', or 'software platform'.
@@ -237,7 +242,10 @@ If unclear, ask: 'Would you like to build a website, mobile app, or software pla
             <cfelseif findNoCase("app", userMessage) OR findNoCase("mobile", userMessage) OR findNoCase("mobile app", aiResponse)>
                 <cfset updatedProjectInfo.project_type = "mobile_app">
                 <cfset updatedProjectInfo.stage = "service_type">
-            <cfelseif findNoCase("software", userMessage) OR findNoCase("saas", userMessage) OR findNoCase("system", userMessage) OR findNoCase("software platform", aiResponse)>
+            <cfelseif findNoCase("software", userMessage) OR findNoCase("saas", userMessage) OR findNoCase("system", userMessage) OR findNoCase("software platform", aiResponse) 
+                     OR findNoCase("softwear", userMessage) OR findNoCase("sofware", userMessage) OR findNoCase("sas", userMessage) 
+                     OR findNoCase("dashboard", userMessage) OR findNoCase("crm", userMessage) OR findNoCase("analytics", userMessage)
+                     OR findNoCase("management", userMessage) OR findNoCase("application", userMessage) OR findNoCase("program", userMessage)>
                 <cfset updatedProjectInfo.project_type = "saas">
                 <cfset updatedProjectInfo.stage = "service_type">
             </cfif>
