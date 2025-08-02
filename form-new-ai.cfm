@@ -36,29 +36,7 @@
                     <!--- Chat Interface --->
                     <div class="chat-container" style="height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 10px; padding: 20px; background-color: #f8f9fa;">
                         <div id="chatMessages">
-                            <!--- Initial AI Message --->
-                            <div class="message ai-message mb-3">
-                                <div class="d-flex align-items-start">
-                                    <div class="avatar text-white rounded-circle p-2 me-2" style="background: white; border: 2px solid #667eea;">
-                                        <svg width="20" height="20" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                            <defs>
-                                                <linearGradient id="torusGradientSmall" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                                                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-                                                </linearGradient>
-                                            </defs>
-                                            <g>
-                                                <circle cx="50" cy="50" r="35" fill="none" stroke="url(#torusGradientSmall)" stroke-width="15" opacity="0.3" />
-                                                <circle cx="50" cy="50" r="35" fill="none" stroke="url(#torusGradientSmall)" stroke-width="15" stroke-dasharray="55 165" class="mini-torus" />
-                                            </g>
-                                        </svg>
-                                    </div>
-                                    <div class="message-content bg-white p-3 rounded shadow-sm" style="max-width: 80%;">
-                                        <p class="mb-0"><strong>What would you like to build?</strong></p>
-                                        <p class="mb-0 mt-2">Just tell me in a few words - website, mobile app, or software platform?</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <!--- Messages will be added dynamically via JavaScript --->
                         </div>
                     </div>
                     
