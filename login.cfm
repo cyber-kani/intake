@@ -20,7 +20,7 @@
                         <!--- Google Sign-In Button --->
                         <div class="d-flex justify-content-center mb-3">
                             <div id="g_id_onload"
-                                 data-client_id="10478893369-cn06u4nbs0mpbflql6i6ce4rp44hsqb7.apps.googleusercontent.com"
+                                 data-client_id="<cfoutput>#application.googleClientId#</cfoutput>"
                                  data-callback="handleCredentialResponse"
                                  data-auto_prompt="false">
                             </div>

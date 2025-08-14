@@ -15,27 +15,60 @@
         <cfset application.googleCallbackURL = "https://clitools.app/intake/auth/callback.cfm">
         <cfset application.claudeApiUrl = "https://api.anthropic.com/v1/messages">
         
-        <!--- Load configuration --->
+        <!--- Load configuration from database --->
         <cftry>
-            <cfinclude template="config/config.cfm">
-            <!--- Ensure we have the API key set correctly --->
-            <cfif structKeyExists(application, "anthropicApiKey")>
-                <cfset application.claudeApiKey = application.anthropicApiKey>
-            </cfif>
+            <!--- First try to load from database --->
+            <cfquery name="qConfig" datasource="clitools">
+                SELECT config_key, config_value 
+                FROM AppConfig
+            </cfquery>
+            
+            <!--- Set application variables from database --->
+            <cfloop query="qConfig">
+                <cfswitch expression="#config_key#">
+                    <cfcase value="ANTHROPIC_API_KEY">
+                        <cfset application.anthropicApiKey = config_value>
+                        <cfset application.claudeApiKey = config_value>
+                    </cfcase>
+                    <cfcase value="GOOGLE_CLIENT_ID">
+                        <cfset application.googleClientId = config_value>
+                    </cfcase>
+                    <cfcase value="GOOGLE_CLIENT_SECRET">
+                        <cfset application.googleClientSecret = config_value>
+                    </cfcase>
+                    <cfcase value="GOOGLE_API_KEY">
+                        <cfset application.googleApiKey = config_value>
+                    </cfcase>
+                    <cfcase value="ADMIN_EMAILS">
+                        <cfif len(config_value)>
+                            <cfset application.adminEmails = listToArray(config_value)>
+                        </cfif>
+                    </cfcase>
+                </cfswitch>
+            </cfloop>
+            
         <cfcatch>
-            <!--- If config file doesn't exist, set empty values --->
-            <cfset application.anthropicApiKey = "">
-            <cfset application.claudeApiKey = "">
-            <cfset application.googleApiKey = "">
-            <cfset application.googleClientId = "">
-            <cfset application.googleClientSecret = "">
+            <!--- If database config fails, try loading from config file --->
+            <cftry>
+                <cfinclude template="config/config.cfm">
+            <cfcatch>
+                <!--- Last resort: set empty values --->
+                <cfset application.anthropicApiKey = "">
+                <cfset application.claudeApiKey = "">
+                <cfset application.googleApiKey = "">
+                <cfset application.googleClientId = "">
+                <cfset application.googleClientSecret = "">
+            </cfcatch>
+            </cftry>
         </cfcatch>
         </cftry>
         
-        <!--- Admin emails - only kanishka@cfnetworks.com is admin --->
-        <cfset application.adminEmails = [
-            "kanishka@cfnetworks.com"
-        ]>
+        <!--- Set default admin emails if not loaded from database --->
+        <cfif NOT structKeyExists(application, "adminEmails") OR arrayLen(application.adminEmails) EQ 0>
+            <cfset application.adminEmails = [
+                "kanishka@cfnetworks.com"
+            ]>
+        </cfif>
         
         <!--- Project types --->
         <cfset application.projectTypes = {
@@ -357,7 +390,7 @@
         <cfargument name="targetPage" type="string" required="true">
         
         <!--- Public pages that don't require login --->
-        <cfset var publicPages = "index.cfm,login.cfm,register.cfm,simple-login.cfm,test-login.cfm,auth/,api/">
+        <cfset var publicPages = "index.cfm,login.cfm,register.cfm,simple-login.cfm,test-login.cfm,auth/,api/,restart-and-check.cfm,force-reload.cfm,test-google-auth.cfm,check-config.cfm">
         <cfset var isPublicPage = false>
         
         <cfloop list="#publicPages#" index="page">

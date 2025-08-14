@@ -1,21 +1,73 @@
-<!--- Configuration Example File --->
-<!--- Copy this to config.cfm and update with your actual values --->
-<cfscript>
-    // API Keys - NEVER commit actual keys to git
-    application.anthropicApiKey = getEnvironmentVariable("ANTHROPIC_API_KEY", "your-anthropic-api-key-here");
+<!--- 
+    Configuration File Template
     
-    // Google OAuth Configuration
-    application.googleClientId = getEnvironmentVariable("GOOGLE_CLIENT_ID", "your-google-client-id");
-    application.googleClientSecret = getEnvironmentVariable("GOOGLE_CLIENT_SECRET", "your-google-client-secret");
+    SETUP INSTRUCTIONS:
+    1. Copy this file to config.cfm
+    2. DO NOT add actual API keys to the file
+    3. Set API keys as environment variables on your server
+    4. NEVER commit config.cfm to version control
+    
+    REQUIRED ENVIRONMENT VARIABLES:
+    - ANTHROPIC_API_KEY: Your Claude API key from https://console.anthropic.com
+    - GOOGLE_API_KEY: Your Google API key from https://console.cloud.google.com
+    - GOOGLE_CLIENT_ID: Your Google OAuth 2.0 client ID
+    - GOOGLE_CLIENT_SECRET: Your Google OAuth 2.0 client secret
+    - DATABASE_NAME: Database name (optional, defaults to 'clitools')
+    
+    HOW TO SET ENVIRONMENT VARIABLES:
+    
+    Linux/Mac:
+    export ANTHROPIC_API_KEY="your-key-here"
+    export GOOGLE_API_KEY="your-key-here"
+    export GOOGLE_CLIENT_ID="your-client-id"
+    export GOOGLE_CLIENT_SECRET="your-secret"
+    
+    Windows:
+    set ANTHROPIC_API_KEY=your-key-here
+    set GOOGLE_API_KEY=your-key-here
+    set GOOGLE_CLIENT_ID=your-client-id
+    set GOOGLE_CLIENT_SECRET=your-secret
+    
+    Or add them to your web server configuration (Apache, IIS, etc.)
+--->
+<cfscript>
+    // SECURITY WARNING: DO NOT PUT ACTUAL API KEYS IN THIS FILE
+    // Use environment variables instead
+    
+    // API Keys - Retrieved from environment variables only
+    try {
+        application.anthropicApiKey = getEnvironmentVariable("ANTHROPIC_API_KEY");
+        application.claudeApiKey = application.anthropicApiKey; // Alias for compatibility
+    } catch (any e) {
+        application.anthropicApiKey = "";
+        application.claudeApiKey = "";
+        writeLog(text="WARNING: ANTHROPIC_API_KEY environment variable not set", type="warning", file="application");
+    }
+    
+    try {
+        // Google OAuth Configuration
+        application.googleApiKey = getEnvironmentVariable("GOOGLE_API_KEY");
+        application.googleClientId = getEnvironmentVariable("GOOGLE_CLIENT_ID");
+        application.googleClientSecret = getEnvironmentVariable("GOOGLE_CLIENT_SECRET");
+    } catch (any e) {
+        application.googleApiKey = "";
+        application.googleClientId = "";
+        application.googleClientSecret = "";
+        writeLog(text="WARNING: Google OAuth environment variables not set", type="warning", file="application");
+    }
     
     // Database Configuration
-    application.datasource = getEnvironmentVariable("DATABASE_NAME", "clitools");
+    try {
+        application.datasource = getEnvironmentVariable("DATABASE_NAME");
+    } catch (any e) {
+        application.datasource = "clitools"; // Safe default for datasource name
+    }
     
-    // Helper function to get environment variables with defaults
-    function getEnvironmentVariable(required string name, string defaultValue = "") {
+    // Helper function - NO DEFAULT VALUES FOR SECURITY
+    function getEnvironmentVariable(required string name) {
         var value = "";
         
-        // Try to get from system environment
+        // Try system environment
         try {
             var system = createObject("java", "java.lang.System");
             value = system.getenv(arguments.name);
@@ -23,10 +75,10 @@
                 return value;
             }
         } catch (any e) {
-            // Ignore errors
+            // Continue to next method
         }
         
-        // Try to get from server scope
+        // Try server scope
         if (structKeyExists(server, arguments.name)) {
             value = server[arguments.name];
             if (len(trim(value))) {
@@ -34,7 +86,11 @@
             }
         }
         
-        // Return default
-        return arguments.defaultValue;
+        // Throw error - no defaults allowed for security
+        throw(
+            type="ConfigurationException", 
+            message="Required environment variable '#arguments.name#' is not set",
+            detail="Set this variable in your environment. Never hardcode API keys."
+        );
     }
 </cfscript>

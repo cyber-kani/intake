@@ -21,6 +21,7 @@ Thumbs.db
 config/config.cfm
 config.local.cfm
 settings.local.cfm
+populate-keys-local.cfm
 
 # Backup files
 *.bak

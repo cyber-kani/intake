@@ -1,0 +1,20 @@
+# Protect configuration files from web access
+# This file prevents direct HTTP access to sensitive configuration files
+
+# Deny all web access to this directory
+Order deny,allow
+Deny from all
+
+# Alternative for Apache 2.4+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+# Prevent directory listing
+Options -Indexes
+
+# Block access to specific file types
+<FilesMatch "\.(cfm|cfc|xml|json|ini|conf|config)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
